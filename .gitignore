@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-dashlab/
+out/
+.DS_Store
+*.local
+.env
+.env.*
