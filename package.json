@@ -38,22 +38,16 @@
   "build": {
     "appId": "com.neattools.dashlab",
     "productName": "DashLab",
-    "directories": { "output": "../dist-dashlab" },
+    "directories": { "output": "dist-dashlab" },
     "files": ["out/**/*"],
     "asar": false,
-    "extraResources": [
-      { "from": "../app/data", "to": "data" },
-      { "from": "../app/public", "to": "public" }
-    ],
     "mac": {
       "target": [{ "target": "dmg", "arch": ["arm64"] }],
       "category": "public.app-category.business",
-      "icon": "../electron/assets/icon.icns",
       "identity": null
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "../electron/assets/icon.ico"
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
     },
     "publish": null
   }
