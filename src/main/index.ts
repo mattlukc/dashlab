@@ -200,8 +200,17 @@ function setupAutoUpdater() {
       return { ok: false, manual: true }
     }
     try {
-      log('[updater] attempting quitAndInstall')
-      autoUpdater.quitAndInstall()
+      log('[updater] attempting quitAndInstall — releasing lock and forcing exit')
+      // Release the single-instance lock so NSIS doesn't see a running instance
+      app.releaseSingleInstanceLock()
+      // Give renderer a moment to show the installing overlay, then hard exit
+      // quitAndInstall handles launching the installer; app.exit ensures the
+      // process is fully gone before NSIS checks
+      autoUpdater.quitAndInstall(false, true)
+      setTimeout(() => {
+        log('[updater] forcing app.exit after quitAndInstall')
+        app.exit(0)
+      }, 500)
       return { ok: true }
     } catch (e) {
       log('[updater] quitAndInstall threw: ' + e)
