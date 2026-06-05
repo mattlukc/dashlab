@@ -21,6 +21,14 @@ interface SettingsResp {
 export default function Layout({ children }: { children: ReactNode }) {
   const [celebrate, setCelebrate] = useState(false);
   const [celebrateFollowers, setCelebrateFollowers] = useState(false);
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    window.electron
+      ?.getVersion()
+      .then((v) => setVersion(typeof v === "string" ? v : ""))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +55,22 @@ export default function Layout({ children }: { children: ReactNode }) {
       <NewFollowerCelebration enabled={celebrateFollowers} />
       {/* Silent background auto-sync — renders nothing, fires on load if stale */}
       <AutoSync />
+      {version && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "6px",
+            left: "8px",
+            fontSize: "11px",
+            color: "#aaa",
+            pointerEvents: "none",
+            userSelect: "none",
+            zIndex: 1000,
+          }}
+        >
+          v{version}
+        </div>
+      )}
     </>
   );
 }

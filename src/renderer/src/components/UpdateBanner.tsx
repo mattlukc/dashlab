@@ -10,11 +10,15 @@ export function UpdateBanner() {
   const [version, setVersion] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     window.electron.on("update-available", (...args: unknown[]) => {
       const info = args[0] as { version?: string } | undefined;
-      if (info?.version) setVersion(info.version);
+      if (info?.version) {
+        setVersion(info.version);
+        setDismissed(false); // a fresh update re-shows the banner
+      }
     });
     window.electron.on("update-downloaded", (...args: unknown[]) => {
       const info = args[0] as { version?: string } | undefined;
@@ -28,7 +32,11 @@ export function UpdateBanner() {
     };
   }, []);
 
+  // Hide only if the user manually dismissed AND we're not mid-flow. Once a
+  // download is in progress or finished, the banner stays put so the install
+  // step can't be lost — it only disappears when the app quits to install.
   if (!version) return null;
+  if (dismissed && !downloading && !downloaded) return null;
 
   async function download() {
     setDownloading(true);
@@ -52,7 +60,13 @@ export function UpdateBanner() {
           <p>Restart DashLab to finish installing the update.</p>
         </Banner>
       ) : (
-        <Banner tone="info" title={`DashLab v${version} is available`}>
+        <Banner
+          tone="info"
+          title={`DashLab v${version} is available`}
+          // Manual dismiss only before the download starts; suppressed once
+          // downloading so the install step survives.
+          onDismiss={downloading ? undefined : () => setDismissed(true)}
+        >
           <p>A new version is ready to download.</p>
           <div style={{ marginTop: "8px" }}>
             <Button

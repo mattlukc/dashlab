@@ -105,6 +105,9 @@ ipcMain.handle('dialog:open-folder', async () => {
   return result.canceled ? null : result.filePaths[0]
 })
 
+// App version — shown in the corner label and the Settings "About & Updates" card.
+ipcMain.handle('app:version:get', async () => app.getVersion())
+
 // ---- OTA auto-update via electron-updater + GitHub Releases ----
 // We don't auto-download or auto-install — the renderer drives it through an
 // in-app banner: "update-available" → user clicks Download → "update-downloaded"
@@ -114,9 +117,24 @@ function setupAutoUpdater() {
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
 
+  // The banner (always mounted) listens on 'update-available' / 'update-downloaded'.
+  // The Settings "About & Updates" card listens on the dedicated 'update-status'
+  // channel — kept separate so each can removeAllListeners() without clobbering
+  // the other (the preload bridge removes by channel, not by callback).
+  const sendStatus = (payload: {
+    status: 'checking' | 'available' | 'not-available' | 'error'
+    version?: string
+    error?: string
+  }) => mainWindow?.webContents.send('update-status', payload)
+
+  autoUpdater.on('checking-for-update', () => sendStatus({ status: 'checking' }))
   autoUpdater.on('update-available', (info) => {
     log('update available: ' + info.version)
     mainWindow?.webContents.send('update-available', { version: info.version })
+    sendStatus({ status: 'available', version: info.version })
+  })
+  autoUpdater.on('update-not-available', (info) => {
+    sendStatus({ status: 'not-available', version: info?.version })
   })
   autoUpdater.on('update-downloaded', (info) => {
     log('update downloaded: ' + info.version)
@@ -124,6 +142,20 @@ function setupAutoUpdater() {
   })
   autoUpdater.on('error', (err) => {
     log('autoUpdater error: ' + (err?.message ?? err))
+    sendStatus({ status: 'error', error: err?.message ?? String(err) })
+  })
+
+  // Manual "Check for Updates" from Settings. Result is surfaced via the
+  // 'update-status' events above; we just kick the check off here.
+  ipcMain.handle('app:check-update:post', async () => {
+    try {
+      await autoUpdater.checkForUpdates()
+      return { ok: true }
+    } catch (e) {
+      log('manual checkForUpdates failed: ' + e)
+      mainWindow?.webContents.send('update-status', { status: 'error', error: String(e) })
+      return { ok: false, error: String(e) }
+    }
   })
 
   ipcMain.handle('download-update', async () => {

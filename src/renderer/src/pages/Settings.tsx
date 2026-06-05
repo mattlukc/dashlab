@@ -91,6 +91,15 @@ export default function SettingsPage() {
   // Config Sync (Google Drive) — local edit buffer for the folder path.
   const [drivePath, setDrivePath] = useState("");
   const [driveSaving, setDriveSaving] = useState(false);
+  // About & Updates
+  const [appVersion, setAppVersion] = useState("");
+  const [updateStatus, setUpdateStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "up-to-date" }
+    | { kind: "available"; version: string }
+    | { kind: "error" }
+  >({ kind: "idle" });
   const [shipstationTest, setShipstationTest] = useState<TestState>({
     status: "idle",
   });
@@ -158,6 +167,37 @@ export default function SettingsPage() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // About & Updates: load the version and subscribe to update-status events.
+  // Uses the dedicated 'update-status' channel (not the banner's
+  // 'update-available'), so removeAllListeners here can't disturb the banner.
+  useEffect(() => {
+    window.electron?.getVersion?.().then((v) =>
+      setAppVersion(typeof v === "string" ? v : "")
+    );
+    window.electron?.on?.("update-status", (...args: unknown[]) => {
+      const s = args[0] as
+        | { status?: string; version?: string; error?: string }
+        | undefined;
+      if (s?.status === "checking") setUpdateStatus({ kind: "checking" });
+      else if (s?.status === "available")
+        setUpdateStatus({ kind: "available", version: s.version ?? "" });
+      else if (s?.status === "not-available")
+        setUpdateStatus({ kind: "up-to-date" });
+      else if (s?.status === "error") setUpdateStatus({ kind: "error" });
+    });
+    return () => window.electron?.removeAllListeners?.("update-status");
+  }, []);
+
+  async function checkForUpdates() {
+    setUpdateStatus({ kind: "checking" });
+    try {
+      await window.electron.checkForUpdate();
+      // Resolution arrives via the 'update-status' events above.
+    } catch {
+      setUpdateStatus({ kind: "error" });
+    }
+  }
 
   // Only the object-valued sections are editable via `update` (string-valued
   // top-level keys like googleDrivePath are handled separately).
@@ -1449,6 +1489,39 @@ export default function SettingsPage() {
         </Layout.AnnotatedSection>
         </>
         )}
+
+        <Layout.AnnotatedSection
+          title="About & Updates"
+          description="DashLab auto-updates from GitHub Releases. You can also check manually."
+        >
+          <Card>
+            <BlockStack gap="300">
+              <Text as="p" variant="bodyMd">
+                Current version: <strong>DashLab v{appVersion || "—"}</strong>
+              </Text>
+              <Text as="p" variant="bodyMd" tone="subdued">
+                Update status:{" "}
+                {updateStatus.kind === "checking"
+                  ? "Checking…"
+                  : updateStatus.kind === "available"
+                    ? `Update available — v${updateStatus.version}`
+                    : updateStatus.kind === "up-to-date"
+                      ? "Up to date"
+                      : updateStatus.kind === "error"
+                        ? "Check failed"
+                        : "—"}
+              </Text>
+              <InlineStack>
+                <Button
+                  onClick={checkForUpdates}
+                  loading={updateStatus.kind === "checking"}
+                >
+                  Check for Updates
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.AnnotatedSection>
 
         <Layout.Section>
           <Box paddingBlockStart="400" paddingBlockEnd="800">
