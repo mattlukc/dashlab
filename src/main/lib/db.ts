@@ -633,6 +633,52 @@ export function getRevenueInRange(isoStart: string, isoEnd: string): number {
   return row.revenue;
 }
 
+// Product sales discounted by a per-channel net multiplier. MUST mirror
+// NET_MULTIPLIER in src/main/dashboard.ts so net periods match the per-order
+// estimateNet() used for "today". (amazon_fba never lands in the orders table —
+// FBA net is applied separately via fbaNet() — but it's listed for parity.)
+const NET_SALES_EXPR = `(${SALES_EXPR}) * (
+  CASE channel
+    WHEN 'shopify' THEN 0.97
+    WHEN 'amazon_fbm' THEN 0.85
+    WHEN 'amazon_fba' THEN 0.7
+    WHEN 'etsy' THEN 0.935
+    WHEN 'ebay' THEN 0.87
+    WHEN 'manual' THEN 1.0
+    ELSE 0.95
+  END
+)`;
+
+/** Net (after-fee) product sales for non-cancelled FBM orders since a timestamp. */
+export function getNetRevenueSince(isoStart: string): number {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(${NET_SALES_EXPR}), 0) as revenue
+       FROM orders
+       WHERE created_at >= ?
+       AND status != 'cancelled'
+       ${directChannelExclusionSql()}`
+    )
+    .get(isoStart) as { revenue: number };
+  return row.revenue;
+}
+
+/** Net (after-fee) product sales in [start, end). Non-cancelled only. */
+export function getNetRevenueInRange(isoStart: string, isoEnd: string): number {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(${NET_SALES_EXPR}), 0) as revenue
+       FROM orders
+       WHERE created_at >= ? AND created_at < ?
+       AND status != 'cancelled'
+       ${directChannelExclusionSql()}`
+    )
+    .get(isoStart, isoEnd) as { revenue: number };
+  return row.revenue;
+}
+
 /**
  * Latest non-cancelled order — used by the new-order ka-ching popup.
  * Dedup-aware so the popup doesn't ring a second time when ShipStation

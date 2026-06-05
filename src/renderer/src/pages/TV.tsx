@@ -27,6 +27,7 @@ type Pill = {
   contentCount?: number;
 };
 interface TvData {
+  displayMode: "gross" | "net";
   totalGross: number;
   totalNet: number;
   totalOrders: number;
@@ -71,6 +72,8 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
 
   const totalGross = data?.totalGross ?? 0;
   const totalNet = data?.totalNet ?? 0;
+  const net = data?.displayMode === "net";
+  const heroValue = net ? totalNet : totalGross;
   const totalOrders = data?.totalOrders ?? 0;
   const totalItems = data?.totalItems ?? 0;
   const aov = data?.aov ?? 0;
@@ -119,7 +122,7 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
     day: "numeric",
   });
   const goal = data?.goal ?? 0;
-  const goalPct = goal > 0 ? Math.min(100, (totalGross / goal) * 100) : 0;
+  const goalPct = goal > 0 ? Math.min(100, (heroValue / goal) * 100) : 0;
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const monthlyGoal = goal * daysInMonth;
   const monthlyGoalPct =
@@ -146,16 +149,18 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
       </div>
 
       <div className="tv-hero-band">
-        <div className="tv-hero-tag">Net Sales Today</div>
+        <div className="tv-hero-tag">{net ? "Net Sales Today" : "Sales Today"}</div>
         <div className="tv-hero-value dl-private">
-          ${Math.round(totalNet).toLocaleString()}
+          ${Math.round(heroValue).toLocaleString()}
         </div>
-        <div
-          className="tv-hero-sub"
-          style={{ fontSize: "0.75rem", color: "#aaa", marginTop: "0.25rem" }}
-        >
-          est. after channel fees
-        </div>
+        {net && (
+          <div
+            className="tv-hero-sub"
+            style={{ fontSize: "0.75rem", color: "#aaa", marginTop: "0.25rem" }}
+          >
+            est. after channel fees
+          </div>
+        )}
         <div className="tv-hero-sub">
           <strong>{totalOrders}</strong> orders ·{" "}
           <strong>{totalItemsLabel}</strong> items today
@@ -168,7 +173,7 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
             <span>Daily Goal</span>
             <span className="dl-private">
               <span className="tv-goal-current">
-                ${Math.round(totalGross).toLocaleString()}
+                ${Math.round(heroValue).toLocaleString()}
               </span>{" "}
               / ${Math.round(goal).toLocaleString()} ({Math.round(goalPct)}%)
             </span>

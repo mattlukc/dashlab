@@ -127,21 +127,42 @@ function setupAutoUpdater() {
     error?: string
   }) => mainWindow?.webContents.send('update-status', payload)
 
-  autoUpdater.on('checking-for-update', () => sendStatus({ status: 'checking' }))
+  const RELEASES_URL = 'https://github.com/mattlukc/dashlab/releases/latest'
+
+  // Verbose logging on every autoUpdater event for diagnosing the Mac flow.
+  autoUpdater.on('checking-for-update', () => {
+    log('[updater] checking-for-update')
+    sendStatus({ status: 'checking' })
+  })
   autoUpdater.on('update-available', (info) => {
-    log('update available: ' + info.version)
+    log('[updater] update-available: ' + info.version)
     mainWindow?.webContents.send('update-available', { version: info.version })
     sendStatus({ status: 'available', version: info.version })
   })
   autoUpdater.on('update-not-available', (info) => {
+    log('[updater] update-not-available (current is latest: ' + (info?.version ?? '?') + ')')
     sendStatus({ status: 'not-available', version: info?.version })
   })
+  let lastLoggedPct = -10
+  autoUpdater.on('download-progress', (p) => {
+    // Log at most every 10% to keep the log readable.
+    if (p.percent >= lastLoggedPct + 10) {
+      lastLoggedPct = Math.floor(p.percent / 10) * 10
+      log(
+        `[updater] download-progress ${Math.round(p.percent)}% ` +
+          `(${Math.round(p.transferred / 1e6)}MB / ${Math.round(p.total / 1e6)}MB)`
+      )
+    }
+    mainWindow?.webContents.send('update-progress', p)
+  })
   autoUpdater.on('update-downloaded', (info) => {
-    log('update downloaded: ' + info.version)
+    log('[updater] update-downloaded: ' + info.version)
     mainWindow?.webContents.send('update-downloaded', { version: info.version })
   })
+  // (electron-updater doesn't surface a 'before-quit-for-update' event; the
+  // quitAndInstall attempt is logged in the install-update handler instead.)
   autoUpdater.on('error', (err) => {
-    log('autoUpdater error: ' + (err?.message ?? err))
+    log('[updater] error: ' + (err?.message ?? err))
     sendStatus({ status: 'error', error: err?.message ?? String(err) })
   })
 
@@ -152,7 +173,7 @@ function setupAutoUpdater() {
       await autoUpdater.checkForUpdates()
       return { ok: true }
     } catch (e) {
-      log('manual checkForUpdates failed: ' + e)
+      log('[updater] manual checkForUpdates failed: ' + e)
       mainWindow?.webContents.send('update-status', { status: 'error', error: String(e) })
       return { ok: false, error: String(e) }
     }
@@ -160,32 +181,51 @@ function setupAutoUpdater() {
 
   ipcMain.handle('download-update', async () => {
     try {
+      log('[updater] downloadUpdate requested')
       await autoUpdater.downloadUpdate()
       return { ok: true }
     } catch (e) {
-      log('downloadUpdate failed: ' + e)
+      log('[updater] downloadUpdate failed: ' + e)
       return { ok: false, error: String(e) }
     }
   })
 
   ipcMain.handle('install-update', async () => {
+    // Unsigned macOS builds can't be relaunched in place by Squirrel.Mac, so on
+    // packaged darwin we skip quitAndInstall entirely and ask the renderer to
+    // surface a manual-download prompt instead.
+    if (app.isPackaged && process.platform === 'darwin') {
+      log('[updater] install on unsigned macOS — requesting manual install')
+      mainWindow?.webContents.send('update-manual-required', { downloadUrl: RELEASES_URL })
+      return { ok: false, manual: true }
+    }
     try {
+      log('[updater] attempting quitAndInstall')
       autoUpdater.quitAndInstall()
       return { ok: true }
     } catch (e) {
-      // Unsigned macOS builds can't relaunch the installer in place — send the
-      // user to the releases page to grab the new build manually.
-      log('quitAndInstall failed, opening releases page: ' + e)
-      await shell.openExternal('https://github.com/mattlukc/dashlab/releases/latest')
+      log('[updater] quitAndInstall threw: ' + e)
+      mainWindow?.webContents.send('update-manual-required', { downloadUrl: RELEASES_URL })
       return { ok: false, error: String(e) }
     }
+  })
+
+  // Open an arbitrary URL in the system browser (used by the "Download from
+  // GitHub" manual-install fallback button).
+  ipcMain.handle('open-external', async (_e, url: string) => {
+    await shell.openExternal(url)
+    return { ok: true }
   })
 
   // Only check in packaged builds — dev has no update feed (dev-app-update.yml).
   if (app.isPackaged) {
     setTimeout(() => {
-      autoUpdater.checkForUpdates().catch((e) => log('checkForUpdates failed: ' + e))
+      autoUpdater.checkForUpdates().catch((e) => log('[updater] initial check failed: ' + e))
     }, 5000)
+    // Re-check every 4 hours so long-running TV installs pick up releases.
+    setInterval(() => {
+      autoUpdater.checkForUpdates().catch((e) => log('[updater] periodic check failed: ' + e))
+    }, 4 * 60 * 60 * 1000)
   }
 }
 

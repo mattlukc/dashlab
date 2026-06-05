@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electron', {
   checkForUpdate: () => ipcRenderer.invoke('app:check-update:post'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   on: (channel: string, cb: (...args: unknown[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => cb(...args))
   },

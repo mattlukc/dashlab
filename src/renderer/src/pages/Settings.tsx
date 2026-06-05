@@ -581,6 +581,18 @@ export default function SettingsPage() {
                 min={0}
                 helpText="Target gross sales for the day. Drives the progress bars on the dashboard. Monthly goal = this × days in the month, computed automatically."
               />
+              <Select
+                label="Dashboard display mode"
+                options={[
+                  { label: "Gross — total revenue", value: "gross" },
+                  { label: "Net — after channel fees", value: "net" },
+                ]}
+                value={settings.general.displayMode}
+                onChange={(v) =>
+                  update("general", "displayMode", v as "gross" | "net")
+                }
+                helpText="Whether the dashboard and TV headline figures (today, periods, goal, pace) show gross revenue or net after estimated channel fees."
+              />
             </BlockStack>
           </Card>
         </Layout.AnnotatedSection>

@@ -5,6 +5,7 @@ interface Window {
     checkForUpdate: () => Promise<unknown>
     downloadUpdate: () => Promise<unknown>
     installUpdate: () => Promise<unknown>
+    openExternal: (url: string) => Promise<unknown>
     on: (channel: string, cb: (...args: unknown[]) => void) => void
     removeAllListeners: (channel: string) => void
   }

@@ -111,6 +111,7 @@ export interface AppSettings {
     celebrateNewOrders: boolean;
     celebrateNewFollowers: boolean;
     dailySalesGoal: number;
+    displayMode: "gross" | "net";
   };
   theme: ThemeSettings;
   googleDrivePath: string;

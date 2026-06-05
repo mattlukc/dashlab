@@ -14,6 +14,7 @@ import {
   getFbaMetric,
   getRevenueSince,
   getRevenueInRange,
+  getNetRevenueSince,
   getOrderCountInRange,
   getOldestUnshippedOrder,
   getAvgShipTimeHours,
@@ -218,6 +219,7 @@ export async function computeDashboard(params: DashboardParams) {
 
   const totalOrdersToday = fbmOrdersToday + fbaOrderCount;
   const totalNetToday = fbmNetToday + fbaNetToday;
+  const totalGrossToday = fbmGrossToday + fbaGrossToday;
   const totalItemsToday = fbmItemsToday + fbaUnitCount;
 
   // Period revenue
@@ -238,6 +240,21 @@ export async function computeDashboard(params: DashboardParams) {
   const mtdRevenue = mtdFbm + mtdFba;
   const qtdRevenue = qtdFbm + qtdFba;
   const ytdRevenue = ytdFbm + ytdFba;
+
+  // Net (after-fee) period figures — FBM via the per-channel net SQL, FBA via
+  // fbaNet(). Used when displayMode === "net".
+  const wtdFbmNet = getNetRevenueSince(startOfWeek().toISOString());
+  const mtdFbmNet = getNetRevenueSince(startOfMonth().toISOString());
+  const qtdFbmNet = getNetRevenueSince(startOfQuarter().toISOString());
+  const ytdFbmNet = getNetRevenueSince(startOfYear().toISOString());
+  const wtdFbaNet = fbaNet(wtdFba);
+  const mtdFbaNet = fbaNet(mtdFba);
+  const qtdFbaNet = fbaNet(qtdFba);
+  const ytdFbaNet = fbaNet(ytdFba);
+  const wtdNet = wtdFbmNet + wtdFbaNet;
+  const mtdNet = mtdFbmNet + mtdFbaNet;
+  const qtdNet = qtdFbmNet + qtdFbaNet;
+  const ytdNet = ytdFbmNet + ytdFbaNet;
 
   const lyWtdFba = fbaEnabled ? getFbaMetric("ly-wtd")?.total_sales ?? 0 : 0;
   const lyMtdFba = fbaEnabled ? getFbaMetric("ly-mtd")?.total_sales ?? 0 : 0;
@@ -335,6 +352,7 @@ export async function computeDashboard(params: DashboardParams) {
   const hourOfDay = now.getHours() + now.getMinutes() / 60;
   const dayFraction = Math.max(0.05, hourOfDay / 24);
   const projectedTodayGross = (fbmGrossToday + fbaGrossToday) / dayFraction;
+  const projectedTodayNet = totalNetToday / dayFraction;
 
   const oldest = getOldestUnshippedOrder();
   const customStat = getCustomOrderPctOnDate(selectedDate);
@@ -393,6 +411,7 @@ export async function computeDashboard(params: DashboardParams) {
     fbaEnabled,
     lastSync,
     dailySalesGoal: settings.general.dailySalesGoal,
+    displayMode: settings.general.displayMode,
     // today
     fbmOrdersToday,
     fbmGrossToday,
@@ -402,19 +421,25 @@ export async function computeDashboard(params: DashboardParams) {
     fbaGrossToday,
     totalOrdersToday,
     totalNetToday,
+    totalGrossToday,
     totalItemsToday,
     aovToday,
     projectedTodayGross,
+    projectedTodayNet,
     oldest,
     customStat,
     avgShipHours,
     onTime,
     queueCount,
-    // periods — revenue
+    // periods — revenue (gross)
     wtdRevenue, mtdRevenue, qtdRevenue, ytdRevenue,
     wtdFbm, mtdFbm, qtdFbm, ytdFbm,
     wtdFba, mtdFba, qtdFba, ytdFba,
     wtdDelta, mtdDelta, qtdDelta, ytdDelta,
+    // periods — revenue (net, after fees)
+    wtdNet, mtdNet, qtdNet, ytdNet,
+    wtdFbmNet, mtdFbmNet, qtdFbmNet, ytdFbmNet,
+    wtdFbaNet, mtdFbaNet, qtdFbaNet, ytdFbaNet,
     // periods — counts
     wtdTotalCount, mtdTotalCount, qtdTotalCount, ytdTotalCount,
     wtdCount, mtdCount, qtdCount, ytdCount,
@@ -513,6 +538,7 @@ export function computeTv() {
   const goal = settings.general.dailySalesGoal;
 
   return {
+    displayMode: settings.general.displayMode,
     totalGross,
     totalNet,
     totalOrders,

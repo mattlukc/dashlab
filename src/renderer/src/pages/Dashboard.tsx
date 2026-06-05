@@ -24,6 +24,7 @@ interface DashboardData {
   compareMode: CompareMode;
   fbaEnabled: boolean;
   dailySalesGoal: number;
+  displayMode: "gross" | "net";
   fbmOrdersToday: number;
   fbmGrossToday: number;
   fbmItemsToday: number;
@@ -32,9 +33,11 @@ interface DashboardData {
   fbaGrossToday: number;
   totalOrdersToday: number;
   totalNetToday: number;
+  totalGrossToday: number;
   totalItemsToday: number;
   aovToday: number;
   projectedTodayGross: number;
+  projectedTodayNet: number;
   oldest: { ageHours: number; orderNumber: string; customerName: string | null } | null;
   customStat: { custom: number; total: number; pct: number };
   avgShipHours: number | null;
@@ -43,6 +46,9 @@ interface DashboardData {
   wtdRevenue: number; mtdRevenue: number; qtdRevenue: number; ytdRevenue: number;
   wtdFbm: number; mtdFbm: number; qtdFbm: number; ytdFbm: number;
   wtdFba: number; mtdFba: number; qtdFba: number; ytdFba: number;
+  wtdNet: number; mtdNet: number; qtdNet: number; ytdNet: number;
+  wtdFbmNet: number; mtdFbmNet: number; qtdFbmNet: number; ytdFbmNet: number;
+  wtdFbaNet: number; mtdFbaNet: number; qtdFbaNet: number; ytdFbaNet: number;
   wtdDelta: Delta | null; mtdDelta: Delta | null; qtdDelta: Delta | null; ytdDelta: Delta | null;
   wtdTotalCount: number; mtdTotalCount: number; qtdTotalCount: number; ytdTotalCount: number;
   wtdCount: number; mtdCount: number; qtdCount: number; ytdCount: number;
@@ -137,6 +143,12 @@ export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number 
   }
 
   const { fbaEnabled } = data;
+  const net = data.displayMode === "net";
+  // The headline figure + goal/pace follow the display mode (gross vs net).
+  const headlineToday = net ? data.totalNetToday : data.totalGrossToday;
+  const goalCurrent = net ? data.totalNetToday : data.totalGrossToday;
+  const pace = net ? data.projectedTodayNet : data.projectedTodayGross;
+  const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
   return (
     <>
@@ -166,10 +178,7 @@ export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number 
           <span className="dl-today-band-title">Live snapshot</span>
         </div>
         {isToday && (
-          <DailyGoalBar
-            current={data.fbmGrossToday + data.fbaGrossToday}
-            goal={data.dailySalesGoal}
-          />
+          <DailyGoalBar current={goalCurrent} goal={data.dailySalesGoal} />
         )}
         <div className="dl-grid-3" style={{ marginBottom: 0 }}>
           <BigKPICard
@@ -179,9 +188,17 @@ export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number 
             accent="#EC6B23"
           />
           <BigKPICard
-            label={isToday ? "Net Sales Today" : "Net Sales"}
-            value={`$${Math.round(data.totalNetToday).toLocaleString()}`}
-            sub={fbaEnabled ? `ShipStation + FBA · est. after fees` : "est. after channel fees"}
+            label={
+              net
+                ? isToday ? "Net Sales Today" : "Net Sales"
+                : isToday ? "Sales Today" : "Sales"
+            }
+            value={money(headlineToday)}
+            sub={
+              net
+                ? fbaEnabled ? "ShipStation + FBA · est. after fees" : "est. after channel fees"
+                : fbaEnabled ? "ShipStation + FBA · gross revenue" : "gross revenue"
+            }
             accent="#2F2F2F"
           />
           <BigKPICard
@@ -197,7 +214,7 @@ export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number 
       <div className="dl-section-heading">Today · Details</div>
       <div className="dl-grid-4">
         <BigKPICard compact label="AOV Today" value={`$${Math.round(data.aovToday).toLocaleString()}`} sub="combined avg order value" />
-        <BigKPICard compact label="Today's Pace" value={`$${Math.round(data.projectedTodayGross).toLocaleString()}`} sub="projected at current pace" />
+        <BigKPICard compact label="Today's Pace" value={money(pace)} sub={net ? "projected net at current pace" : "projected at current pace"} />
         <BigKPICard
           compact
           label="Oldest Unshipped"
@@ -219,12 +236,12 @@ export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number 
         <BigKPICard compact label="% Custom Today" value={`${Math.round(data.customStat.pct)}%`} sub={`${data.customStat.custom} of ${data.customStat.total} orders`} />
       </div>
 
-      <div className="dl-section-heading">Sales · Periods</div>
+      <div className="dl-section-heading">{net ? "Net Sales · Periods" : "Sales · Periods"}</div>
       <div className="dl-grid-4">
-        <BigKPICard compact label="Sales · WTD" value={`$${Math.round(data.wtdRevenue).toLocaleString()}`} delta={data.wtdDelta ?? undefined} sub={fbaEnabled ? `$${Math.round(data.wtdFbm).toLocaleString()} SS · $${Math.round(data.wtdFba).toLocaleString()} FBA` : "this week"} />
-        <BigKPICard compact label="Sales · MTD" value={`$${Math.round(data.mtdRevenue).toLocaleString()}`} delta={data.mtdDelta ?? undefined} sub={fbaEnabled ? `$${Math.round(data.mtdFbm).toLocaleString()} SS · $${Math.round(data.mtdFba).toLocaleString()} FBA` : "this month"} />
-        <BigKPICard compact label="Sales · QTD" value={`$${Math.round(data.qtdRevenue).toLocaleString()}`} delta={data.qtdDelta ?? undefined} sub={fbaEnabled ? `$${Math.round(data.qtdFbm).toLocaleString()} SS · $${Math.round(data.qtdFba).toLocaleString()} FBA` : "this quarter"} />
-        <BigKPICard compact label="Sales · YTD" value={`$${Math.round(data.ytdRevenue).toLocaleString()}`} delta={data.ytdDelta ?? undefined} sub={fbaEnabled ? `$${Math.round(data.ytdFbm).toLocaleString()} SS · $${Math.round(data.ytdFba).toLocaleString()} FBA` : "this year"} />
+        <BigKPICard compact label={`${net ? "Net" : "Sales"} · WTD`} value={money(net ? data.wtdNet : data.wtdRevenue)} delta={data.wtdDelta ?? undefined} sub={fbaEnabled ? `${money(net ? data.wtdFbmNet : data.wtdFbm)} SS · ${money(net ? data.wtdFbaNet : data.wtdFba)} FBA` : "this week"} />
+        <BigKPICard compact label={`${net ? "Net" : "Sales"} · MTD`} value={money(net ? data.mtdNet : data.mtdRevenue)} delta={data.mtdDelta ?? undefined} sub={fbaEnabled ? `${money(net ? data.mtdFbmNet : data.mtdFbm)} SS · ${money(net ? data.mtdFbaNet : data.mtdFba)} FBA` : "this month"} />
+        <BigKPICard compact label={`${net ? "Net" : "Sales"} · QTD`} value={money(net ? data.qtdNet : data.qtdRevenue)} delta={data.qtdDelta ?? undefined} sub={fbaEnabled ? `${money(net ? data.qtdFbmNet : data.qtdFbm)} SS · ${money(net ? data.qtdFbaNet : data.qtdFba)} FBA` : "this quarter"} />
+        <BigKPICard compact label={`${net ? "Net" : "Sales"} · YTD`} value={money(net ? data.ytdNet : data.ytdRevenue)} delta={data.ytdDelta ?? undefined} sub={fbaEnabled ? `${money(net ? data.ytdFbmNet : data.ytdFbm)} SS · ${money(net ? data.ytdFbaNet : data.ytdFba)} FBA` : "this year"} />
       </div>
 
       <div className="dl-section-heading">Orders · Periods</div>

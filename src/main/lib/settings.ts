@@ -144,6 +144,8 @@ export interface AppSettings {
     celebrateNewFollowers: boolean;
     /** Daily gross sales goal (USD). 0 hides the progress bar. Monthly goal is auto-derived (daily × days in month). */
     dailySalesGoal: number;
+    /** Whether the dashboard headline figures show gross revenue or net (after channel fees). */
+    displayMode: "gross" | "net";
   };
   // Appearance / brand theming
   theme: ThemeSettings;
@@ -290,6 +292,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     celebrateNewOrders: true,
     celebrateNewFollowers: true,
     dailySalesGoal: 1000,
+    displayMode: "gross",
   },
   theme: {
     // Active colors default to the Neat Tools preset, so nothing looks different
