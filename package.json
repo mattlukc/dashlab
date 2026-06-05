@@ -1,14 +1,14 @@
 {
   "name": "dashlab",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Neat Tools internal dashboard",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "ELECTRON_RUN_AS_NODE= electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack:mac": "npm run build && electron-builder --mac --arm64 && node scripts/write-version.js",
-    "pack:win": "npm run build && electron-builder --win --x64 && node scripts/write-version.js",
+    "pack:mac": "npm run build && electron-builder --mac --arm64 --publish always",
+    "pack:win": "npm run build && electron-builder --win --x64 --publish always",
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -17,6 +17,7 @@
     "@shopify/polaris-icons": "^9.3.1",
     "better-sqlite3": "^11.5.0",
     "canvas-confetti": "^1.9.3",
+    "electron-updater": "^6.8.3",
     "jsbarcode": "^3.11.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -38,17 +39,41 @@
   "build": {
     "appId": "com.neattools.dashlab",
     "productName": "DashLab",
-    "directories": { "output": "dist-dashlab" },
-    "files": ["out/**/*"],
+    "directories": {
+      "output": "dist-dashlab"
+    },
+    "files": [
+      "out/**/*"
+    ],
     "asar": false,
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["arm64"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
       "category": "public.app-category.business",
       "identity": null
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
-    "publish": null
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mattlukc",
+        "repo": "dashlab"
+      }
+    ]
   }
 }

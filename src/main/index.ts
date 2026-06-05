@@ -1,6 +1,11 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } from 'electron'
+import electronUpdater from 'electron-updater'
 import * as path from 'path'
 import * as fs from 'fs'
+
+// electron-updater is CommonJS; under electron-vite's ESM the named export isn't
+// statically resolvable, so pull autoUpdater off the default import.
+const { autoUpdater } = electronUpdater
 import { getDb } from './lib/db'
 import { registerIpcHandlers, startPollers } from './api'
 import { loadSettings, saveSettings } from './lib/settings'
@@ -94,88 +99,57 @@ ipcMain.handle('dialog:open-folder', async () => {
   return result.canceled ? null : result.filePaths[0]
 })
 
-// ---- Auto-update via the synced Google Drive folder ----
-// The Drive folder syncs the built installer (dist-dashlab/) between machines.
-// On startup we read the version stamp the other machine's build left behind and,
-// if it's newer than what's running here, surface an in-app "Install Update"
-// banner that opens the synced installer. No network / update server needed.
+// ---- OTA auto-update via electron-updater + GitHub Releases ----
+// We don't auto-download or auto-install — the renderer drives it through an
+// in-app banner: "update-available" → user clicks Download → "update-downloaded"
+// → user clicks Restart & Install. quitAndInstall on an unsigned macOS build can
+// fail, so we fall back to opening the GitHub releases page.
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
 
-/** true if `remote` is a strictly higher x.y.z than `local`. */
-function isNewerVersion(remote: string, local: string): boolean {
-  const r = remote.split('.').map((n) => parseInt(n, 10) || 0)
-  const l = local.split('.').map((n) => parseInt(n, 10) || 0)
-  for (let i = 0; i < 3; i++) {
-    const a = r[i] ?? 0
-    const b = l[i] ?? 0
-    if (a > b) return true
-    if (a < b) return false
-  }
-  return false
-}
+  autoUpdater.on('update-available', (info) => {
+    log('update available: ' + info.version)
+    mainWindow?.webContents.send('update-available', { version: info.version })
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    log('update downloaded: ' + info.version)
+    mainWindow?.webContents.send('update-downloaded', { version: info.version })
+  })
+  autoUpdater.on('error', (err) => {
+    log('autoUpdater error: ' + (err?.message ?? err))
+  })
 
-/**
- * Resolve the dist-dashlab directory inside the synced Drive folder. The spec is
- * ambiguous about whether it sits at `<drive>/dist-dashlab` or
- * `<drive>/../dist-dashlab`, so we try both and use whichever actually holds the
- * version stamp. Returns null if neither exists.
- */
-function resolveDriveDistDir(googleDrivePath: string): string | null {
-  const candidates = [
-    path.join(googleDrivePath, 'dist-dashlab'),
-    path.join(googleDrivePath, '..', 'dist-dashlab'),
-  ]
-  for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, 'latest-version.json'))) return dir
-  }
-  return null
-}
-
-function checkForUpdate() {
-  try {
-    const settings = loadSettings()
-    if (!settings.googleDrivePath) return // not configured — skip silently
-
-    const distDir = resolveDriveDistDir(settings.googleDrivePath)
-    if (!distDir) return // no synced build yet — skip silently
-
-    const raw = fs.readFileSync(path.join(distDir, 'latest-version.json'), 'utf8')
-    const remoteVersion = String(JSON.parse(raw).version || '')
-    if (!remoteVersion) return
-
-    const current = app.getVersion()
-    if (!isNewerVersion(remoteVersion, current)) {
-      log(`update check: up to date (running ${current}, drive ${remoteVersion})`)
-      return
+  ipcMain.handle('download-update', async () => {
+    try {
+      await autoUpdater.downloadUpdate()
+      return { ok: true }
+    } catch (e) {
+      log('downloadUpdate failed: ' + e)
+      return { ok: false, error: String(e) }
     }
+  })
 
-    const installerPath =
-      process.platform === 'win32'
-        ? path.join(distDir, 'DashLab-Setup-win-x64.exe')
-        : path.join(distDir, `DashLab-${remoteVersion}-arm64.dmg`)
-
-    if (!fs.existsSync(installerPath)) {
-      log(`update available (${remoteVersion}) but installer missing at ${installerPath}`)
-      return
+  ipcMain.handle('install-update', async () => {
+    try {
+      autoUpdater.quitAndInstall()
+      return { ok: true }
+    } catch (e) {
+      // Unsigned macOS builds can't relaunch the installer in place — send the
+      // user to the releases page to grab the new build manually.
+      log('quitAndInstall failed, opening releases page: ' + e)
+      await shell.openExternal('https://github.com/mattlukc/dashlab/releases/latest')
+      return { ok: false, error: String(e) }
     }
+  })
 
-    log(`update available: ${current} → ${remoteVersion} (${installerPath})`)
-    mainWindow?.webContents.send('update-available', {
-      version: remoteVersion,
-      installerPath,
-    })
-  } catch (e) {
-    // Any read/parse error → skip silently, this is best-effort.
-    log('update check failed (ignored): ' + e)
+  // Only check in packaged builds — dev has no update feed (dev-app-update.yml).
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((e) => log('checkForUpdates failed: ' + e))
+    }, 5000)
   }
 }
-
-// Open the synced installer. On Mac the DMG opens in Finder; on Windows the NSIS
-// installer launches, closes the app, and reinstalls.
-ipcMain.handle('install-update', async (_e, installerPath: string) => {
-  if (!installerPath) return { ok: false, error: 'No installer path' }
-  const err = await shell.openPath(installerPath)
-  return err ? { ok: false, error: err } : { ok: true }
-})
 
 // On launch, if a Google Drive folder is configured and holds a
 // dashlab-config.json, load those settings so every machine stays in sync.
@@ -224,8 +198,8 @@ app.whenReady().then(async () => {
   createWindow()
   log('startup done')
 
-  // Best-effort auto-update check, delayed so it doesn't compete with launch.
-  setTimeout(checkForUpdate, 3000)
+  // Wire up OTA updates (event listeners, IPC, delayed check).
+  setupAutoUpdater()
 })
 
 app.on('window-all-closed', () => {})

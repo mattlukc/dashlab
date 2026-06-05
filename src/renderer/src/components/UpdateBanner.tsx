@@ -1,50 +1,71 @@
-// Auto-update prompt. The main process watches the synced Google Drive folder
-// for a newer build (see checkForUpdate in src/main/index.ts) and fires an
-// "update-available" IPC event with the version + the path to the synced
-// installer. We surface that as a dismissible banner with an Install action.
+// OTA auto-update prompt. The main process (electron-updater, see
+// setupAutoUpdater in src/main/index.ts) fires "update-available" when a newer
+// GitHub release exists and "update-downloaded" once the user has pulled it.
+// This banner drives the two-step flow: Download → Restart & Install.
 
 import { useEffect, useState } from "react";
-import { Banner } from "@shopify/polaris";
-
-interface UpdateInfo {
-  version: string;
-  installerPath: string;
-}
+import { Banner, Button } from "@shopify/polaris";
 
 export function UpdateBanner() {
-  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [version, setVersion] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   useEffect(() => {
     window.electron.on("update-available", (...args: unknown[]) => {
-      const info = args[0] as UpdateInfo | undefined;
-      if (info?.version && info?.installerPath) setUpdate(info);
+      const info = args[0] as { version?: string } | undefined;
+      if (info?.version) setVersion(info.version);
     });
-    return () => window.electron.removeAllListeners("update-available");
+    window.electron.on("update-downloaded", (...args: unknown[]) => {
+      const info = args[0] as { version?: string } | undefined;
+      if (info?.version) setVersion(info.version);
+      setDownloading(false);
+      setDownloaded(true);
+    });
+    return () => {
+      window.electron.removeAllListeners("update-available");
+      window.electron.removeAllListeners("update-downloaded");
+    };
   }, []);
 
-  if (!update) return null;
+  if (!version) return null;
 
-  const isWindows = window.electron.platform === "win32";
-  const note = isWindows
-    ? "The app will close and reinstall automatically."
-    : "The installer will open in Finder.";
+  async function download() {
+    setDownloading(true);
+    await window.electron.downloadUpdate();
+    // The button stays in its "Downloading…" state until the main process emits
+    // "update-downloaded", which flips the banner to the install step.
+  }
 
   async function install() {
-    if (!update) return;
-    await window.electron.invoke("install-update", update.installerPath);
-    setUpdate(null);
+    await window.electron.installUpdate();
   }
 
   return (
     <div style={{ padding: "8px 16px" }}>
-      <Banner
-        tone="info"
-        title={`Update available — DashLab v${update.version}`}
-        action={{ content: "Install Update", onAction: install }}
-        onDismiss={() => setUpdate(null)}
-      >
-        <p>{note}</p>
-      </Banner>
+      {downloaded ? (
+        <Banner
+          tone="success"
+          title={`DashLab v${version} downloaded`}
+          action={{ content: "Restart & Install", onAction: install }}
+        >
+          <p>Restart DashLab to finish installing the update.</p>
+        </Banner>
+      ) : (
+        <Banner tone="info" title={`DashLab v${version} is available`}>
+          <p>A new version is ready to download.</p>
+          <div style={{ marginTop: "8px" }}>
+            <Button
+              variant="primary"
+              onClick={download}
+              disabled={downloading}
+              loading={downloading}
+            >
+              {downloading ? "Downloading…" : "Download Update"}
+            </Button>
+          </div>
+        </Banner>
+      )}
     </div>
   );
 }
