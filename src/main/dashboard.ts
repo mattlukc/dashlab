@@ -451,6 +451,9 @@ export function computeTv() {
   const fbaItems = fbaCache?.unit_count ?? 0;
 
   const totalGross = fbmGross + fbaGross;
+  const fbmNet = todaysOrders.reduce((s, o) => s + estimateNet(o), 0);
+  const fbaNet = fbaEnabled ? fbaGross * 0.7 : 0;  // matches NET_MULTIPLIER.amazon_fba
+  const totalNet = fbmNet + fbaNet;
   const totalOrders = fbmOrders + fbaOrders;
   const totalItems = fbmItems + fbaItems;
   const aov = totalOrders > 0 ? totalGross / totalOrders : 0;
@@ -510,6 +513,7 @@ export function computeTv() {
 
   return {
     totalGross,
+    totalNet,
     totalOrders,
     totalItems,
     aov,

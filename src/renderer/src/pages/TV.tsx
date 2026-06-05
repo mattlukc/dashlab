@@ -28,6 +28,7 @@ type Pill = {
 };
 interface TvData {
   totalGross: number;
+  totalNet: number;
   totalOrders: number;
   totalItems: number;
   aov: number;
@@ -69,6 +70,7 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [refreshKey]);
 
   const totalGross = data?.totalGross ?? 0;
+  const totalNet = data?.totalNet ?? 0;
   const totalOrders = data?.totalOrders ?? 0;
   const totalItems = data?.totalItems ?? 0;
   const aov = data?.aov ?? 0;
@@ -144,10 +146,11 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
       </div>
 
       <div className="tv-hero-band">
-        <div className="tv-hero-tag">Sales Today</div>
+        <div className="tv-hero-tag">Net Sales Today</div>
         <div className="tv-hero-value dl-private">
-          ${Math.round(totalGross).toLocaleString()}
+          ${Math.round(totalNet).toLocaleString()}
         </div>
+        <div className="tv-hero-sub">est. after channel fees</div>
         <div className="tv-hero-sub">
           <strong>{totalOrders}</strong> orders ·{" "}
           <strong>{totalItemsLabel}</strong> items today
