@@ -452,8 +452,9 @@ export function computeTv() {
 
   const totalGross = fbmGross + fbaGross;
   const fbmNet = todaysOrders.reduce((s, o) => s + estimateNet(o), 0);
-  const fbaNet = fbaEnabled ? fbaGross * 0.7 : 0;  // matches NET_MULTIPLIER.amazon_fba
-  const totalNet = fbmNet + fbaNet;
+  // Use the shared fbaNet() helper (× 0.85) so the TV matches getDashboardData().
+  const fbaNetAmount = fbaEnabled ? fbaNet(fbaGross) : 0;
+  const totalNet = fbmNet + fbaNetAmount;
   const totalOrders = fbmOrders + fbaOrders;
   const totalItems = fbmItems + fbaItems;
   const aov = totalOrders > 0 ? totalGross / totalOrders : 0;

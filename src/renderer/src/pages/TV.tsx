@@ -150,7 +150,12 @@ export default function TVPage({ refreshKey = 0 }: { refreshKey?: number }) {
         <div className="tv-hero-value dl-private">
           ${Math.round(totalNet).toLocaleString()}
         </div>
-        <div className="tv-hero-sub">est. after channel fees</div>
+        <div
+          className="tv-hero-sub"
+          style={{ fontSize: "0.75rem", color: "#aaa", marginTop: "0.25rem" }}
+        >
+          est. after channel fees
+        </div>
         <div className="tv-hero-sub">
           <strong>{totalOrders}</strong> orders ·{" "}
           <strong>{totalItemsLabel}</strong> items today
