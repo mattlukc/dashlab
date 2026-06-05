@@ -18,6 +18,35 @@ import {
 } from "../lib/amazon-sp-api";
 import { loadSettings } from "../lib/settings";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** SP-API throttling shows up as HTTP 429 / "QuotaExceeded" in the error text. */
+function isRateLimitError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return msg.includes("429") || msg.includes("quotaexceeded");
+}
+
+/**
+ * Run an SP-API call, and if it fails specifically with a rate-limit (429 /
+ * QuotaExceeded), wait 10s and retry once. Any other error (or a second 429)
+ * propagates to the caller.
+ */
+async function withRateLimitRetry<T>(
+  fn: () => Promise<T>,
+  label: string
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!isRateLimitError(err)) throw err;
+    console.warn(
+      `[amazon-fba-poller] rate-limited on ${label}; waiting 10s then retrying once`
+    );
+    await sleep(10_000);
+    return fn();
+  }
+}
+
 /** Local-time ISO 8601 string with timezone offset. */
 function toLocalISO(d: Date): string {
   const tzOffsetMin = -d.getTimezoneOffset();
@@ -127,8 +156,15 @@ async function runOnce(): Promise<
       Date.now() - 7 * 24 * 60 * 60 * 1000
     ).toISOString();
     const orders: Awaited<ReturnType<typeof listFbaOrders>> = [];
-    for (const marketplaceId of marketplaceIds) {
-      const batch = await listFbaOrders({ createdAfterISO: since, marketplaceId });
+    for (let i = 0; i < marketplaceIds.length; i++) {
+      const marketplaceId = marketplaceIds[i];
+      // Space out marketplace calls to stay under SP-API's per-account rate
+      // limit — 2s between each (none before the first).
+      if (i > 0) await sleep(2000);
+      const batch = await withRateLimitRetry(
+        () => listFbaOrders({ createdAfterISO: since, marketplaceId }),
+        `listFbaOrders ${marketplaceId}`
+      );
       orders.push(...batch);
     }
     for (const o of orders) {
@@ -219,14 +255,22 @@ async function runOnce(): Promise<
         let orderCount = 0;
         let unitCount = 0;
         let currency: string | null = null;
-        for (const marketplaceId of marketplaceIds) {
-          const metrics = await getOrderMetrics({
-            intervalStart: range.start,
-            intervalEnd: range.end,
-            fulfillmentNetwork: "AFN",
-            granularity: "Total",
-            marketplaceId,
-          });
+        for (let i = 0; i < marketplaceIds.length; i++) {
+          const marketplaceId = marketplaceIds[i];
+          // 2s between marketplace calls (none before the first) to respect
+          // the SP-API rate limit.
+          if (i > 0) await sleep(2000);
+          const metrics = await withRateLimitRetry(
+            () =>
+              getOrderMetrics({
+                intervalStart: range.start,
+                intervalEnd: range.end,
+                fulfillmentNetwork: "AFN",
+                granularity: "Total",
+                marketplaceId,
+              }),
+            `getOrderMetrics ${periodKey} ${marketplaceId}`
+          );
           const m = metrics[0];
           totalSales += m?.totalSales ? parseFloat(m.totalSales.amount) : 0;
           orderCount += m?.orderCount ?? 0;

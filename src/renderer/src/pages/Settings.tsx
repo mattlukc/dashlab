@@ -1490,6 +1490,7 @@ export default function SettingsPage() {
         </>
         )}
 
+        {tabIndex === 0 && (
         <Layout.AnnotatedSection
           title="About & Updates"
           description="DashLab auto-updates from GitHub Releases. You can also check manually."
@@ -1522,6 +1523,7 @@ export default function SettingsPage() {
             </BlockStack>
           </Card>
         </Layout.AnnotatedSection>
+        )}
 
         <Layout.Section>
           <Box paddingBlockStart="400" paddingBlockEnd="800">
