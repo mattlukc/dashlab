@@ -10,6 +10,12 @@ import { getDb } from './lib/db'
 import { registerIpcHandlers, startPollers } from './api'
 import { loadSettings, saveSettings } from './lib/settings'
 
+// Let the renderer play the ka-ching / celebration audio without a prior user
+// gesture. Without this, Chromium blocks autoplay and audio.play() rejects with
+// NotAllowedError — so new-order sounds silently failed, especially on the TV
+// dashboard where nobody clicks. Must run before app is ready.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
 const APP_NAME = 'DashLab'
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
