@@ -8,6 +8,7 @@ import { TopBar } from "./components/TopBar";
 import { NewOrderCelebration } from "./components/NewOrderCelebration";
 import { NewFollowerCelebration } from "./components/NewFollowerCelebration";
 import { AutoSync } from "./components/AutoSync";
+import { UpdateBanner } from "./components/UpdateBanner";
 
 interface SettingsResp {
   general?: {
@@ -39,6 +40,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <UpdateBanner />
       <TopBar />
       <main className="dl-main">{children}</main>
       <NewOrderCelebration enabled={celebrate} />

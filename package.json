@@ -1,14 +1,14 @@
 {
   "name": "dashlab",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Neat Tools internal dashboard",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "ELECTRON_RUN_AS_NODE= electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack:mac": "npm run build && electron-builder --mac --arm64",
-    "pack:win": "npm run build && electron-builder --win --x64",
+    "pack:mac": "npm run build && electron-builder --mac --arm64 && node scripts/write-version.js",
+    "pack:win": "npm run build && electron-builder --win --x64 && node scripts/write-version.js",
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-builder install-app-deps"
   },

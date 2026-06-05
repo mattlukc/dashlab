@@ -1403,17 +1403,35 @@ export default function SettingsPage() {
         >
           <Card>
             <BlockStack gap="400">
-              <TextField
-                label="Google Drive folder"
-                value={drivePath}
-                onChange={setDrivePath}
-                autoComplete="off"
-                placeholder="/Users/you/Library/CloudStorage/GoogleDrive-…/DashLab"
-                helpText="The folder that holds (or will hold) dashlab-config.json."
-                connectedRight={
-                  <Button onClick={browseDriveFolder}>Browse…</Button>
-                }
-              />
+              <BlockStack gap="150">
+                <Text as="span" variant="bodyMd">
+                  Google Drive folder
+                </Text>
+                <InlineStack gap="300" blockAlign="center" wrap={false}>
+                  <div
+                    title={drivePath || undefined}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      padding: "8px 12px",
+                      border: "1px solid var(--p-color-border)",
+                      borderRadius: "8px",
+                      background: "var(--p-color-bg-surface-secondary)",
+                      color: drivePath ? undefined : "var(--p-color-text-subdued)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {drivePath || "No folder chosen"}
+                  </div>
+                  <Button onClick={browseDriveFolder}>Choose Folder…</Button>
+                </InlineStack>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  Pick the folder that holds (or will hold) dashlab-config.json.
+                </Text>
+              </BlockStack>
               <InlineStack>
                 <Button variant="primary" onClick={saveDrivePath} loading={driveSaving}>
                   Save Path
