@@ -5,6 +5,14 @@
 // the Settings page can type the JSON it fetches/sends over IPC. Keep these in
 // sync with the main-process copy.
 
+// Amazon NA marketplaces, all served by the NA SP-API endpoint. Mirrors the
+// list in src/main/lib/settings.ts — keep in sync.
+export const AMAZON_MARKETPLACES: { id: string; label: string }[] = [
+  { id: "ATVPDKIKX0DER", label: "United States" },
+  { id: "A2EUQ1WTGCTBG2", label: "Canada" },
+  { id: "A1AM78C64UM0Y8", label: "Mexico" },
+];
+
 export interface ThemeColors {
   primaryColor: string;
   primaryHover: string;
@@ -37,7 +45,7 @@ export interface AppSettings {
     clientSecret: string;
     refreshToken: string;
     sellerId: string;
-    marketplaceId: string;
+    marketplaceIds: string[];
     pollIntervalMinutes: number;
     enabled: boolean;
     useSandbox: boolean;

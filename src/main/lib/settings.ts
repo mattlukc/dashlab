@@ -56,7 +56,12 @@ export interface AppSettings {
     clientSecret: string;
     refreshToken: string;
     sellerId: string;
-    marketplaceId: string;
+    /**
+     * One or more Amazon marketplace IDs to poll. All NA marketplaces
+     * (US/CA/MX) share the same SP-API endpoint, so the pollers iterate this
+     * array and scope each SP-API call to a single marketplace.
+     */
+    marketplaceIds: string[];
     pollIntervalMinutes: number;
     enabled: boolean;
     /** Use Amazon's sandbox endpoint (returns dummy data) instead of production. */
@@ -148,6 +153,14 @@ export interface AppSettings {
   googleDriveSyncedAt: string;
 }
 
+// Amazon NA marketplaces, all served by https://sellingpartnerapi-na.amazon.com.
+// Used by the Settings UI to render the marketplace checkboxes.
+export const AMAZON_MARKETPLACES: { id: string; label: string }[] = [
+  { id: "ATVPDKIKX0DER", label: "United States" },
+  { id: "A2EUQ1WTGCTBG2", label: "Canada" },
+  { id: "A1AM78C64UM0Y8", label: "Mexico" },
+];
+
 // Built-in presets. These ship with the app, are always present (loadSettings
 // re-injects them), and cannot be deleted from the UI. Neat Tools is the default.
 export const BUILTIN_THEME_PRESETS: ThemePreset[] = [
@@ -215,7 +228,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     clientSecret: "",
     refreshToken: "",
     sellerId: "",
-    marketplaceId: "ATVPDKIKX0DER", // US default
+    marketplaceIds: ["ATVPDKIKX0DER"], // US default
     pollIntervalMinutes: 2,
     enabled: false,
     useSandbox: true,
@@ -310,6 +323,35 @@ function ensureDataDir() {
   }
 }
 
+/**
+ * Merge a persisted amazonSpApi blob with defaults, migrating the legacy
+ * single `marketplaceId: string` field to the new `marketplaceIds: string[]`.
+ * The old key is dropped from the result so it never lingers in settings.json.
+ */
+function migrateAmazonSpApi(
+  parsed?: Partial<AppSettings["amazonSpApi"]> & { marketplaceId?: string }
+): AppSettings["amazonSpApi"] {
+  const merged = { ...DEFAULT_SETTINGS.amazonSpApi, ...parsed };
+  const legacy = (parsed as { marketplaceId?: string } | undefined)
+    ?.marketplaceId;
+  if (
+    (!Array.isArray(parsed?.marketplaceIds) ||
+      parsed?.marketplaceIds.length === 0) &&
+    typeof legacy === "string" &&
+    legacy.trim()
+  ) {
+    merged.marketplaceIds = [legacy];
+  }
+  // Never persist the legacy key.
+  delete (merged as { marketplaceId?: string }).marketplaceId;
+  // Guard against an empty array sneaking through (UI enforces ≥1, but a
+  // hand-edited settings.json might not).
+  if (!Array.isArray(merged.marketplaceIds) || merged.marketplaceIds.length === 0) {
+    merged.marketplaceIds = [...DEFAULT_SETTINGS.amazonSpApi.marketplaceIds];
+  }
+  return merged;
+}
+
 export function loadSettings(): AppSettings {
   try {
     ensureDataDir();
@@ -322,7 +364,7 @@ export function loadSettings(): AppSettings {
     // Deep-merge with defaults so newly added fields aren't undefined
     return {
       shipstation: { ...DEFAULT_SETTINGS.shipstation, ...parsed.shipstation },
-      amazonSpApi: { ...DEFAULT_SETTINGS.amazonSpApi, ...parsed.amazonSpApi },
+      amazonSpApi: migrateAmazonSpApi(parsed.amazonSpApi),
       etsy: { ...DEFAULT_SETTINGS.etsy, ...parsed.etsy },
       shopify: { ...DEFAULT_SETTINGS.shopify, ...parsed.shopify },
       social: {

@@ -115,13 +115,22 @@ async function runOnce(): Promise<
   if (s.inFlight) return { skipped: "already running" };
   s.inFlight = true;
 
+  const marketplaceIds =
+    settings.amazonSpApi.marketplaceIds?.length
+      ? settings.amazonSpApi.marketplaceIds
+      : ["ATVPDKIKX0DER"];
+
   const logId = recordSyncStart(SERVICE);
   try {
-    // FBA orders — last 7 days
+    // FBA orders — last 7 days, across every configured marketplace.
     const since = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
     ).toISOString();
-    const orders = await listFbaOrders({ createdAfterISO: since });
+    const orders: Awaited<ReturnType<typeof listFbaOrders>> = [];
+    for (const marketplaceId of marketplaceIds) {
+      const batch = await listFbaOrders({ createdAfterISO: since, marketplaceId });
+      orders.push(...batch);
+    }
     for (const o of orders) {
       upsertFbaOrder({
         amazonOrderId: o.AmazonOrderId,
@@ -169,23 +178,28 @@ async function runOnce(): Promise<
       );
     }
 
-    // FBA inventory
-    const inventory = await getFbaInventorySummaries();
-    for (const item of inventory) {
-      const details = item.inventoryDetails ?? {};
-      upsertFbaInventory({
-        sku: item.sellerSku,
-        asin: item.asin ?? null,
-        fulfillableQuantity: details.fulfillableQuantity ?? 0,
-        totalQuantity: item.totalQuantity ?? 0,
-        inboundQuantity:
-          (details.inboundWorkingQuantity ?? 0) +
-          (details.inboundShippedQuantity ?? 0) +
-          (details.inboundReceivingQuantity ?? 0),
-        reservedQuantity:
-          details.reservedQuantity?.totalReservedQuantity ?? 0,
-        marketplaceId: settings.amazonSpApi.marketplaceId || null,
-      });
+    // FBA inventory — fetched per marketplace so each row carries its own
+    // marketplace_id (the DB upserts on sku + marketplace_id).
+    let inventoryCount = 0;
+    for (const marketplaceId of marketplaceIds) {
+      const inventory = await getFbaInventorySummaries(marketplaceId);
+      inventoryCount += inventory.length;
+      for (const item of inventory) {
+        const details = item.inventoryDetails ?? {};
+        upsertFbaInventory({
+          sku: item.sellerSku,
+          asin: item.asin ?? null,
+          fulfillableQuantity: details.fulfillableQuantity ?? 0,
+          totalQuantity: item.totalQuantity ?? 0,
+          inboundQuantity:
+            (details.inboundWorkingQuantity ?? 0) +
+            (details.inboundShippedQuantity ?? 0) +
+            (details.inboundReceivingQuantity ?? 0),
+          reservedQuantity:
+            details.reservedQuantity?.totalReservedQuantity ?? 0,
+          marketplaceId,
+        });
+      }
     }
 
     // Order metrics — Amazon's own dashboard data source. One call per period.
@@ -195,28 +209,39 @@ async function runOnce(): Promise<
     // exact interval + value so identical MTD/QTD/YTD numbers can be diagnosed
     // (most commonly: the SP-API sandbox returns the same canned figures for any
     // interval — flip off useSandbox to see real per-period values).
+    // Metrics are summed across all configured marketplaces per period, then
+    // written once per periodKey (the metrics table is keyed by periodKey, not
+    // marketplace — the dashboard shows a combined NA total).
     const intervals = buildIntervals();
     for (const [periodKey, range] of Object.entries(intervals)) {
       try {
-        const metrics = await getOrderMetrics({
-          intervalStart: range.start,
-          intervalEnd: range.end,
-          fulfillmentNetwork: "AFN",
-          granularity: "Total",
-        });
-        const m = metrics[0];
-        const totalSales = m?.totalSales ? parseFloat(m.totalSales.amount) : 0;
-        const orderCount = m?.orderCount ?? 0;
-        const unitCount = m?.unitCount ?? 0;
+        let totalSales = 0;
+        let orderCount = 0;
+        let unitCount = 0;
+        let currency: string | null = null;
+        for (const marketplaceId of marketplaceIds) {
+          const metrics = await getOrderMetrics({
+            intervalStart: range.start,
+            intervalEnd: range.end,
+            fulfillmentNetwork: "AFN",
+            granularity: "Total",
+            marketplaceId,
+          });
+          const m = metrics[0];
+          totalSales += m?.totalSales ? parseFloat(m.totalSales.amount) : 0;
+          orderCount += m?.orderCount ?? 0;
+          unitCount += m?.unitCount ?? 0;
+          currency = currency ?? m?.totalSales?.currencyCode ?? null;
+        }
         console.log(
-          `[amazon-fba-poller] metric "${periodKey}" interval=${range.start}..${range.end} → sales=${totalSales} orders=${orderCount} units=${unitCount}`
+          `[amazon-fba-poller] metric "${periodKey}" interval=${range.start}..${range.end} markets=${marketplaceIds.join("+")} → sales=${totalSales} orders=${orderCount} units=${unitCount}`
         );
         upsertFbaMetric({
           periodKey,
           orderCount,
           unitCount,
           totalSales,
-          currency: m?.totalSales?.currencyCode ?? null,
+          currency,
         });
       } catch (err) {
         console.warn(
@@ -228,9 +253,9 @@ async function runOnce(): Promise<
 
     recordSyncFinish(logId, {
       status: "ok",
-      recordsSynced: orders.length + inventory.length,
+      recordsSynced: orders.length + inventoryCount,
     });
-    return { orders: orders.length, inventory: inventory.length };
+    return { orders: orders.length, inventory: inventoryCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     recordSyncFinish(logId, { status: "error", errorMessage: msg });

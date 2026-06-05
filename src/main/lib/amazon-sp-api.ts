@@ -126,13 +126,14 @@ export interface FBAOrderRaw {
 export async function listAmazonOrders(opts: {
   createdAfterISO: string;
   fulfillmentChannel: "AFN" | "MFN";
+  /** Single marketplace to scope this query to (e.g. "ATVPDKIKX0DER"). */
+  marketplaceId: string;
 }): Promise<FBAOrderRaw[]> {
-  const settings = loadSettings();
   const collected: FBAOrderRaw[] = [];
   let nextToken: string | undefined;
   do {
     const qs = new URLSearchParams({
-      MarketplaceIds: settings.amazonSpApi.marketplaceId || "ATVPDKIKX0DER",
+      MarketplaceIds: opts.marketplaceId,
       FulfillmentChannels: opts.fulfillmentChannel,
       CreatedAfter: opts.createdAfterISO,
     });
@@ -153,10 +154,12 @@ export async function listAmazonOrders(opts: {
 /** Back-compat wrapper: existing FBA poller still uses this name. */
 export async function listFbaOrders(opts: {
   createdAfterISO: string;
+  marketplaceId: string;
 }): Promise<FBAOrderRaw[]> {
   return listAmazonOrders({
     createdAfterISO: opts.createdAfterISO,
     fulfillmentChannel: "AFN",
+    marketplaceId: opts.marketplaceId,
   });
 }
 
@@ -196,12 +199,13 @@ export async function getOrderMetrics(opts: {
   intervalEnd: string;
   fulfillmentNetwork?: "AFN" | "MFN";
   granularity?: "Total" | "Hour" | "Day" | "Week" | "Month" | "Year";
+  /** Single marketplace to scope these metrics to. */
+  marketplaceId: string;
 }): Promise<OrderMetricsRaw[]> {
-  const settings = loadSettings();
   const qs = new URLSearchParams({
     interval: `${opts.intervalStart}--${opts.intervalEnd}`,
     granularity: opts.granularity ?? "Total",
-    marketplaceIds: settings.amazonSpApi.marketplaceId || "ATVPDKIKX0DER",
+    marketplaceIds: opts.marketplaceId,
   });
   if (opts.fulfillmentNetwork) {
     qs.set("fulfillmentNetwork", opts.fulfillmentNetwork);
@@ -252,16 +256,17 @@ export async function getOrderItems(
   return collected;
 }
 
-export async function getFbaInventorySummaries(): Promise<FBAInventoryItemRaw[]> {
-  const settings = loadSettings();
+export async function getFbaInventorySummaries(
+  marketplaceId: string
+): Promise<FBAInventoryItemRaw[]> {
   const collected: FBAInventoryItemRaw[] = [];
   let nextToken: string | undefined;
   do {
     const qs = new URLSearchParams({
       details: "true",
       granularityType: "Marketplace",
-      granularityId: settings.amazonSpApi.marketplaceId || "ATVPDKIKX0DER",
-      marketplaceIds: settings.amazonSpApi.marketplaceId || "ATVPDKIKX0DER",
+      granularityId: marketplaceId,
+      marketplaceIds: marketplaceId,
     });
     if (nextToken) qs.set("nextToken", nextToken);
     const res = await spApiFetch(
@@ -291,9 +296,13 @@ export async function testSpApiConnection(): Promise<{
     // Always force a fresh token on test — caller just changed creds.
     clearAccessTokenCache();
     await getAccessToken();
-    // Make a minimal API call too — listFbaOrders for last 24h.
+    // Make a minimal API call too — listFbaOrders for last 24h against the
+    // first configured marketplace (falls back to US).
+    const { amazonSpApi } = loadSettings();
+    const marketplaceId =
+      amazonSpApi.marketplaceIds?.[0] || "ATVPDKIKX0DER";
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const orders = await listFbaOrders({ createdAfterISO: since });
+    const orders = await listFbaOrders({ createdAfterISO: since, marketplaceId });
     return {
       ok: true,
       message: `Connected. Found ${orders.length} FBA order${orders.length === 1 ? "" : "s"} in last 24 hours.`,

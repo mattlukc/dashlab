@@ -189,17 +189,25 @@ export async function computeDashboard(params: DashboardParams) {
       }
     } else {
       try {
-        const metrics = await getOrderMetrics({
-          intervalStart: localISOForDate(selectedDate, false),
-          intervalEnd: localISOForDate(selectedDate, true),
-          fulfillmentNetwork: "AFN",
-          granularity: "Total",
-        });
-        const m = metrics[0];
-        if (m) {
-          fbaOrderCount = m.orderCount ?? 0;
-          fbaUnitCount = m.unitCount ?? 0;
-          fbaGrossToday = m.totalSales ? parseFloat(m.totalSales.amount) : 0;
+        // Sum live metrics across every configured marketplace (US/CA/MX).
+        const marketplaceIds =
+          settings.amazonSpApi.marketplaceIds?.length
+            ? settings.amazonSpApi.marketplaceIds
+            : ["ATVPDKIKX0DER"];
+        for (const marketplaceId of marketplaceIds) {
+          const metrics = await getOrderMetrics({
+            intervalStart: localISOForDate(selectedDate, false),
+            intervalEnd: localISOForDate(selectedDate, true),
+            fulfillmentNetwork: "AFN",
+            granularity: "Total",
+            marketplaceId,
+          });
+          const m = metrics[0];
+          if (m) {
+            fbaOrderCount += m.orderCount ?? 0;
+            fbaUnitCount += m.unitCount ?? 0;
+            fbaGrossToday += m.totalSales ? parseFloat(m.totalSales.amount) : 0;
+          }
         }
       } catch (err) {
         console.warn("[dashboard] FBA live fetch failed:", (err as Error).message);

@@ -2,11 +2,28 @@
 import { Card, Text, Badge, BlockStack, Banner } from "@shopify/polaris";
 import type { FBAStats } from "../lib/types";
 
+// Short codes for the active-marketplace breakdown label (e.g. "US + CA + MX").
+const MARKETPLACE_CODES: Record<string, string> = {
+  ATVPDKIKX0DER: "US",
+  A2EUQ1WTGCTBG2: "CA",
+  A1AM78C64UM0Y8: "MX",
+};
+
 interface Props {
   stats: FBAStats;
+  /** Active SP-API marketplace IDs — drives the combined-totals breakdown badge. */
+  marketplaceIds?: string[];
 }
 
-export function FBASection({ stats }: Props) {
+export function FBASection({ stats, marketplaceIds = [] }: Props) {
+  // When more than one marketplace feeds these numbers, show which ones the
+  // combined totals span (e.g. "US + CA + MX").
+  const breakdown =
+    marketplaceIds.length > 1
+      ? marketplaceIds
+          .map((id) => MARKETPLACE_CODES[id] ?? id)
+          .join(" + ")
+      : null;
   return (
     <Card padding="0">
       <div
@@ -22,7 +39,10 @@ export function FBASection({ stats }: Props) {
         <Text as="h2" variant="headingMd">
           📦 Amazon FBA
         </Text>
-        <Badge>Amazon ships these</Badge>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {breakdown && <Badge tone="info">{breakdown}</Badge>}
+          <Badge>Amazon ships these</Badge>
+        </div>
       </div>
 
       <div

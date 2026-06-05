@@ -16,7 +16,12 @@ import {
   Select,
   Tabs,
 } from "@shopify/polaris";
-import type { AppSettings, ThemeColors, ThemePreset } from "../lib/settings";
+import {
+  AMAZON_MARKETPLACES,
+  type AppSettings,
+  type ThemeColors,
+  type ThemePreset,
+} from "../lib/settings";
 
 type TestState =
   | { status: "idle" }
@@ -227,6 +232,10 @@ export default function SettingsPage() {
 
   async function handleSave() {
     if (!settings) return;
+    if (settings.amazonSpApi.marketplaceIds.length === 0) {
+      alert("Select at least one Amazon marketplace before saving.");
+      return;
+    }
     setSaving(true);
     setSaved(false);
     try {
@@ -676,13 +685,42 @@ export default function SettingsPage() {
                 onChange={(v) => update("amazonSpApi", "sellerId", v)}
                 autoComplete="off"
               />
-              <TextField
-                label="Marketplace ID"
-                value={settings.amazonSpApi.marketplaceId}
-                onChange={(v) => update("amazonSpApi", "marketplaceId", v)}
-                autoComplete="off"
-                helpText="Default ATVPDKIKX0DER is Amazon US."
-              />
+              <BlockStack gap="100">
+                <Text as="span" variant="bodyMd">
+                  Marketplaces
+                </Text>
+                {AMAZON_MARKETPLACES.map((mp) => {
+                  const selected =
+                    settings.amazonSpApi.marketplaceIds.includes(mp.id);
+                  // Don't let the user uncheck the last remaining marketplace —
+                  // the pollers need at least one.
+                  const isLast =
+                    selected && settings.amazonSpApi.marketplaceIds.length === 1;
+                  return (
+                    <Checkbox
+                      key={mp.id}
+                      label={`${mp.label} (${mp.id})`}
+                      checked={selected}
+                      disabled={isLast}
+                      onChange={(checked) =>
+                        update(
+                          "amazonSpApi",
+                          "marketplaceIds",
+                          checked
+                            ? [...settings.amazonSpApi.marketplaceIds, mp.id]
+                            : settings.amazonSpApi.marketplaceIds.filter(
+                                (id) => id !== mp.id
+                              )
+                        )
+                      }
+                    />
+                  );
+                })}
+                <Text as="span" variant="bodySm" tone="subdued">
+                  Pick at least one. US, Canada, and Mexico all use the same NA
+                  SP-API endpoint and are polled together.
+                </Text>
+              </BlockStack>
               <TextField
                 label="Poll interval (minutes)"
                 type="number"

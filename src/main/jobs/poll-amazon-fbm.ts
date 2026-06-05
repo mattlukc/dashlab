@@ -128,10 +128,19 @@ async function runOnce(): Promise<
       Date.now() - daysBack * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    const raws = await listAmazonOrders({
-      createdAfterISO: since,
-      fulfillmentChannel: "MFN",
-    });
+    const marketplaceIds =
+      settings.amazonSpApi.marketplaceIds?.length
+        ? settings.amazonSpApi.marketplaceIds
+        : ["ATVPDKIKX0DER"];
+    const raws: FBAOrderRaw[] = [];
+    for (const marketplaceId of marketplaceIds) {
+      const batch = await listAmazonOrders({
+        createdAfterISO: since,
+        fulfillmentChannel: "MFN",
+        marketplaceId,
+      });
+      raws.push(...batch);
+    }
 
     let kept = 0;
     for (const raw of raws) {
