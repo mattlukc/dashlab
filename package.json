@@ -1,6 +1,6 @@
 {
   "name": "dashlab",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "Neat Tools internal dashboard",
   "main": "out/main/index.js",
   "scripts": {
@@ -67,6 +67,11 @@
           ]
         }
       ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": true
     },
     "publish": [
       {
