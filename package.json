@@ -72,7 +72,8 @@
       {
         "provider": "github",
         "owner": "mattlukc",
-        "repo": "dashlab"
+        "repo": "dashlab",
+        "releaseType": "release"
       }
     ]
   }
