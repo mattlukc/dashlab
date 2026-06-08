@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist-dashlab/
+
+# OS / editor cruft
+.DS_Store
+*.log
+
+# Env
+.env
+.env.*

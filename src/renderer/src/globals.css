@@ -1,0 +1,475 @@
+/*
+ * DashLab global styles — aligned to Neat Tools Brand Guidelines V1 (May 2024).
+ * Brand: Neat Orange #EC6B23, Slate Dark #2F2F2F, Slate Light #E6E3E0, White.
+ * Typography: Avenir Next (system on Mac), Nunito Sans fallback.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800;900&display=swap");
+
+:root {
+  /* Brand colors */
+  --dl-primary: #ec6b23;
+  --dl-primary-hover: #d45c1c;
+  --dl-primary-soft: #fce5d3;
+  --dl-dark: #2f2f2f;
+  --dl-slate-mid: #4a4a4a;
+  --dl-light: #e6e3e0;
+  --dl-white: #ffffff;
+  --dl-paper: #fafaf8;
+
+  /* Semantic */
+  --dl-success: #2f7a3a;
+  --dl-warning: #b54708;
+  --dl-danger: #c4314b;
+  --dl-info: #2c6ecb;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--dl-paper);
+  color: var(--dl-dark);
+  font-family: "Avenir Next", Avenir, "Nunito Sans", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Brand headings — ALL CAPS BOLD per style guide. */
+h1,
+h2,
+h3,
+h4,
+.dl-heading {
+  font-family: "Avenir Next", Avenir, "Nunito Sans", -apple-system, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--dl-dark);
+}
+
+/* Override Polaris heading weights to match brand */
+.Polaris-Text--headingMd,
+.Polaris-Text--headingLg,
+.Polaris-Text--headingXl,
+.Polaris-Text--heading2xl {
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* --------- Top bar (Slate Dark with Neat Orange accent) --------- */
+.dl-topbar {
+  background: var(--dl-dark);
+  color: var(--dl-white);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 3px solid var(--dl-primary);
+}
+
+/* Fullscreen / kiosk mode — hide the nav chrome entirely, show only the
+   floating exit button. Background remains the page paper color. */
+:fullscreen .dl-topbar,
+:-webkit-full-screen .dl-topbar {
+  display: none;
+}
+
+/* Pull the main content flush to the top when in fullscreen */
+:fullscreen .dl-main,
+:-webkit-full-screen .dl-main {
+  padding-top: 24px;
+}
+
+.dl-logo {
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--dl-white);
+  text-decoration: none;
+}
+
+.dl-logo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--dl-primary);
+  box-shadow: 0 0 0 2px rgba(236, 107, 35, 0.25);
+}
+
+.dl-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.dl-nav a {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dl-nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--dl-white);
+}
+
+.dl-nav a.active {
+  background: var(--dl-primary);
+  color: var(--dl-white);
+}
+
+.dl-scan {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  padding: 8px 14px;
+  gap: 10px;
+  width: 340px;
+}
+
+.dl-scan input {
+  background: transparent;
+  border: 0;
+  color: var(--dl-white);
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.dl-scan input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.dl-sync-pill {
+  background: rgba(236, 107, 35, 0.16);
+  border: 1px solid rgba(236, 107, 35, 0.4);
+  color: var(--dl-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* --------- Main layout --------- */
+.dl-main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.dl-page-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.dl-page-title h1 {
+  font-size: 26px;
+  margin: 0;
+  font-weight: 900;
+  color: var(--dl-dark);
+  letter-spacing: 0.02em;
+}
+
+.dl-page-meta {
+  color: var(--dl-slate-mid);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* --------- Grid helpers --------- */
+.dl-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dl-grid-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dl-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 1100px) {
+  .dl-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dl-grid-2,
+  .dl-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Today highlight band — Neat Orange accent on a soft cream background */
+.dl-today-band {
+  background: var(--dl-primary-soft);
+  border: 1px solid var(--dl-primary);
+  border-radius: 6px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+.dl-today-band-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dl-today-band-tag {
+  background: var(--dl-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+.dl-today-band-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dl-slate-mid);
+}
+
+/* Section heading for compact rows */
+.dl-section-heading {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dl-slate-mid);
+  margin: 16px 0 8px 2px;
+}
+
+/* Privacy mode — blur any element marked .dl-private when body has .dl-privacy-on */
+.dl-privacy-on .dl-private {
+  filter: blur(10px);
+  transition: filter 0.2s;
+  user-select: none;
+  pointer-events: none;
+}
+.dl-privacy-on .dl-private:hover {
+  /* Briefly reveal on hover */
+  filter: blur(0);
+}
+
+/* --------- Polaris card overrides — brand-aligned --------- */
+.Polaris-Card,
+[class*="Polaris-Card"] {
+  border-radius: 4px !important; /* brand: rectangular, simple */
+}
+
+.Polaris-Button--variantPrimary {
+  background: var(--dl-primary) !important;
+  border-color: var(--dl-primary) !important;
+}
+
+.Polaris-Button--variantPrimary:hover {
+  background: var(--dl-primary-hover) !important;
+}
+
+/* Brand orange link color */
+a:not(.dl-nav a):not(.dl-logo) {
+  color: var(--dl-primary);
+}
+a:not(.dl-nav a):not(.dl-logo):hover {
+  color: var(--dl-primary-hover);
+}
+
+/* --------- Print queue (Orders page) ---------
+   Moved here from an inline <style> in PrintQueue.tsx: the `body > *` selector
+   was HTML-escaped on the server but not the client, causing a hydration
+   mismatch. These dl- classes are namespaced, so living globally is fine. */
+.dl-print-queue {
+  background: #fff;
+  border: 1px solid var(--dl-light, #e6e3e0);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.dl-pq-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--dl-dark, #2f2f2f);
+  color: #fff;
+  border-bottom: 3px solid var(--dl-primary, #ec6b23);
+}
+.dl-pq-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dl-pq-count {
+  background: var(--dl-primary, #ec6b23);
+  color: #fff;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+.dl-pq-sub {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  text-transform: none;
+}
+.dl-pq-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--dl-primary, #ec6b23);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.dl-pq-btn:hover:not(:disabled) {
+  background: var(--dl-primary-hover, #d45c1c);
+}
+.dl-pq-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dl-pq-empty {
+  padding: 20px 18px;
+  color: var(--dl-slate-mid, #4a4a4a);
+  font-size: 13px;
+  font-weight: 600;
+}
+.dl-pq-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.dl-pq-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 18px;
+  font-size: 13px;
+}
+.dl-pq-row + .dl-pq-row {
+  border-top: 1px solid #f0f1f2;
+}
+.dl-pq-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dl-pq-cust {
+  color: var(--dl-dark, #2f2f2f);
+  font-weight: 600;
+}
+.dl-pq-items {
+  color: var(--dl-slate-mid, #4a4a4a);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The print container is invisible on screen. */
+.dl-print-container {
+  display: none;
+}
+
+@media print {
+  /* 4x6 thermal label, no margins. */
+  @page {
+    size: 4in 6in;
+    margin: 0;
+  }
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Show ONLY the slips; hide every other top-level node (topbar, main, …). */
+  .dl-print-container {
+    display: block;
+  }
+  body > *:not(.dl-print-container) {
+    display: none !important;
+  }
+
+  /* Belt-and-suspenders: anything explicitly opted out of print stays hidden. */
+  .dl-no-print,
+  .pq-no-print {
+    display: none !important;
+  }
+
+  .dl-print-slip {
+    break-after: page;
+    page-break-after: always;
+  }
+  .dl-print-slip:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .dl-slip {
+    box-shadow: none !important;
+  }
+}
